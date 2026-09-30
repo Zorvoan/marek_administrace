@@ -13,7 +13,21 @@ A small, server-side rendered web app for sharing text posts, built with **Larav
 
 ## Requirements
 
-PHP 8.3+ with the `sqlite3`/`pdo_sqlite`, `mbstring`, `xml`, `dom`, `tokenizer` and `ctype` extensions, and [Composer](https://getcomposer.org).
+PHP 8.3+ and [Composer](https://getcomposer.org). These PHP extensions must be enabled: `ctype`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `json`, `libxml`, `mbstring`, `openssl`, `pcre`, `phar`, `session`, `tokenizer`, `xml`, `xmlwriter`, plus `pdo_sqlite` and `sqlite3` for the default SQLite database. Run `composer check-platform-reqs` to see what is missing.
+
+**Windows:** the PHP zip ships with most extensions switched off. Copy `php.ini-development` to `php.ini` (in the PHP folder) if you have no `php.ini`, then remove the leading `;` from these lines and open a new terminal (`php --ini` shows which file is used):
+
+```ini
+extension=fileinfo
+extension=mbstring
+extension=openssl
+extension=pdo_sqlite
+extension=sqlite3
+extension=curl
+extension=zip
+```
+
+If `extension_dir` is commented out, also enable `extension_dir = "ext"`.
 
 ## Run it
 
