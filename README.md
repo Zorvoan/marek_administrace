@@ -1,70 +1,69 @@
 # TextShare
 
-A small server-side rendered web app for sharing text posts, built with **Flask**, **Jinja2** and **SQLite**.
+A small, server-side rendered web app for sharing text posts, built with **Laravel 13**, **Blade** and **SQLite**. No JavaScript framework and no front-end build step.
 
 ## Features
 
-- Sign up, log in and log out (passwords are hashed; sessions are signed cookies)
+- Sign up, log in and log out (bcrypt-hashed passwords, "remember me")
 - Text posts with a title, a body and a category
-- Categories: a few are pre-created and any logged-in user can add more
-- Search bar in the navbar: type words (all must match the title or text, case-insensitive, Unicode-aware) and/or pick a category
-- Only the author can edit or delete a post; everyone else gets `403` (and never sees the buttons)
-- Pagination (10 posts per page), responsive layout, light/dark theme
+- Categories: a few are seeded and any logged-in user can add more
+- Search bar in the navigation bar: every word must appear in the title or text, optionally narrowed to one category (the same filters are reachable by clicking a category badge or a name on the *Categories* page)
+- Only the author can edit or delete a post; everyone else gets `403` and never sees the buttons
+- Pagination (10 posts per page, the search/category is kept across pages), responsive layout, light/dark theme
+
+## Requirements
+
+PHP 8.3+ with the `sqlite3`/`pdo_sqlite`, `mbstring`, `xml`, `dom`, `tokenizer` and `ctype` extensions, and [Composer](https://getcomposer.org).
 
 ## Run it
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-
-flask --app textshare run --debug
+composer setup      # install, create .env + app key + SQLite file, migrate, seed categories
+composer dev        # http://127.0.0.1:8000
 ```
 
-Open <http://127.0.0.1:5000>. The SQLite database and tables are created automatically in `instance/`.
-
-## Configuration
-
-| Environment variable    | Purpose                                                                                       |
-| ----------------------- | --------------------------------------------------------------------------------------------- |
-| `SECRET_KEY`            | Signs session cookies. If unset, a random key is generated once and stored in `instance/secret_key`. Set it explicitly in production. |
-| `SESSION_COOKIE_SECURE` | Set to `1` when serving over HTTPS so the session cookie is never sent over plain HTTP.       |
-
-For production use a real WSGI server, e.g. `pip install gunicorn && gunicorn "textshare:create_app()"`, behind HTTPS.
+`composer setup` is shorthand for `composer install`, copying `.env.example` to `.env`, `php artisan key:generate`, creating `database/database.sqlite` and `php artisan migrate --seed`.
 
 ## Tests
 
 ```bash
-pip install -r requirements-dev.txt
-pytest
+composer test
 ```
 
-## Layout
+The suite (`tests/Feature`) covers sign up / login / logout, post CRUD, validation, search, the category filter, pagination, and that only authors can edit or delete their posts.
+
+## How it is organised
 
 ```
-textshare/
-  __init__.py     app factory, config, error pages
-  db.py           SQLite connection handling (plain sqlite3, no ORM)
-  schema.sql      tables + default categories (applied on startup, idempotent)
-  security.py     CSRF protection and security headers
-  auth.py         sign up / log in / log out, login_required
-  posts.py        list + search + category filter, create, view, edit, delete
-  categories.py   list and create categories
-  templates/      Jinja2 templates
-  static/         one stylesheet, favicon (no JavaScript)
-tests/            pytest suite
+routes/web.php                          every route, in one short file
+app/Http/Controllers/PostController.php list + search + category filter, create, show, edit, delete
+app/Http/Controllers/CategoryController.php
+app/Http/Controllers/Auth/              RegisterController, SessionController (login/logout)
+app/Http/Requests/                      RegisterRequest, PostRequest (validation rules)
+app/Models/                             User, Post, Category (+ the Post::search() scope)
+app/Policies/PostPolicy.php             who may edit/delete a post
+app/View/Components/Layout.php          page shell: navigation bar + search form
+resources/views/                        Blade templates (components/layout, posts/, categories/, auth/, errors/)
+public/css/app.css                      the only stylesheet
 ```
 
 ## Design notes
 
-- **Authorization** is enforced on the server: `edit` and `delete` load the post, return `403` unless `post.user_id` is the logged-in user, and the `UPDATE`/`DELETE` statements also filter on `user_id`.
-- **CSRF**: every `POST` (including log out) must carry the per-session token that all forms include.
-- **Injection / XSS**: all SQL is parameterised (search uses `instr()`, so `%` and `_` are literal); Jinja auto-escapes all output.
-- **Headers**: a strict Content-Security-Policy is sent. The app uses no inline scripts or styles, and the delete confirmation is a plain `<details>` element.
-- **Usernames** are ASCII (`A-Z a-z 0-9 _`) and unique case-insensitively. Category names may be any text; uniqueness is case-insensitive for ASCII letters (an SQLite limitation).
+- **Authorization** is enforced on the server by `PostPolicy` (`$user->id === $post->user_id`), wired in as route middleware in `PostController` (`can:update,post` / `can:delete,post`). Guests are redirected to the login page, other users get `403`. The post's author is always the logged-in user; it can't be set from the form.
+- **CSRF**: every `POST`/`PUT`/`DELETE` form carries a token (Laravel's `VerifyCsrfToken` middleware), including log out.
+- **XSS**: all output is escaped by Blade (`{{ }}`); line breaks in post text are preserved with CSS (`white-space: pre-wrap`), not by emitting HTML.
+- **SQL injection**: Eloquent/query builder with bound parameters. In search, `%` and `_` typed by the user are matched literally.
+- **Sessions**: the session id is regenerated on login and sign up and invalidated on logout. Login and sign up are throttled to 10 attempts per minute per IP.
+- **Emails** are stored lowercase, so `Jane@x.com` and `jane@x.com` are the same account.
+- **Development safety net**: outside production, Eloquent is in strict mode (lazy loading, mass-assignment mistakes and missing attributes throw), so N+1 queries fail the tests instead of shipping.
+
+## Production checklist
+
+Set `APP_ENV=production`, `APP_DEBUG=false`, a real `APP_URL`, and serve `public/` over HTTPS with `SESSION_SECURE_COOKIE=true`. Point `DB_*` at a real database if you don't want SQLite, then run `php artisan migrate --force` and `php artisan config:cache route:cache view:cache`.
 
 ## Known limitations
 
-- No rate limiting on login/sign up; put the app behind a reverse proxy or add Flask-Limiter before exposing it publicly.
-- No e-mail verification or password reset.
-- Search scans the posts table, which is fine for thousands of posts; for much larger data sets switch to SQLite FTS5.
+- **Search case-folding depends on the database.** SQLite's `LIKE` ignores case for `A–Z` only, so on the default SQLite database a search for `řeka` will not find `Řeka` (searching `Řeka` does). MySQL is case-insensitive for all letters. PostgreSQL's `LIKE` is case-sensitive. It has only been tested on SQLite.
+- Category names are unique according to the database's collation (case-insensitive on MySQL, case-sensitive on SQLite, so `Tech` and `tech` can coexist there).
+- Search scans the posts table, which is fine for thousands of posts; for much larger data sets move to full-text search.
+- There is no e-mail verification, password reset, or moderation/admin role, and categories can't be renamed or deleted.
