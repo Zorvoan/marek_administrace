@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }}{% endblock %}
+{% block content %}
+  <article class="post">
+    <h1>{{ post.title }}</h1>
+    <p class="meta">
+      by {{ post.username }} · {{ post.created_at[:16] }} UTC
+      {%- if post.updated_at %} (edited {{ post.updated_at[:16] }} UTC){% endif %} ·
+      <a class="tag" href="{{ url_for('posts.index', category=post.category_id) }}">{{ post.category_name }}</a>
+    </p>
+    <div class="post-body">{{ post.body }}</div>
+
+    {% if g.user and g.user.id == post.user_id %}
+      <div class="actions">
+        <a class="btn" href="{{ url_for('posts.edit', post_id=post.id) }}">Edit</a>
+        <details class="confirm">
+          <summary class="btn danger">Delete</summary>
+          <form method="post" action="{{ url_for('posts.delete', post_id=post.id) }}">
+            {{ csrf_field() }}
+            <p>Delete this post permanently?</p>
+            <button type="submit" class="btn danger">Yes, delete it</button>
+          </form>
+        </details>
+      </div>
+    {% endif %}
+  </article>
+  <p><a href="{{ url_for('posts.index') }}">← All posts</a></p>
+{% endblock %}

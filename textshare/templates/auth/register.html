@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Sign up{% endblock %}
+{% block content %}
+  <h1>Sign up</h1>
+  <form class="form" method="post">
+    {{ csrf_field() }}
+    <label for="username">Username</label>
+    <input id="username" name="username" value="{{ request.form.get('username', '') }}"
+           minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+" autocomplete="username" required autofocus>
+    <p class="hint">3-30 characters: letters, numbers and underscores.</p>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" minlength="8" maxlength="128"
+           autocomplete="new-password" required>
+    <p class="hint">At least 8 characters.</p>
+    <label for="confirm_password">Confirm password</label>
+    <input id="confirm_password" name="confirm_password" type="password" minlength="8" maxlength="128"
+           autocomplete="new-password" required>
+    <button type="submit" class="btn">Create account</button>
+  </form>
+  <p class="muted">Already registered? <a href="{{ url_for('auth.login') }}">Log in</a>.</p>
+{% endblock %}

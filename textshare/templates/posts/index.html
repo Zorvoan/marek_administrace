@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{% if q or category %}Search{% else %}Latest posts{% endif %}{% endblock %}
+{% block content %}
+  <h1>{% if q or category %}Search results{% else %}Latest posts{% endif %}</h1>
+
+  <p class="muted">
+    {{ total }} post{{ '' if total == 1 else 's' }}
+    {%- if q %} matching “{{ q }}”{% endif %}
+    {%- if category %} in <strong>{{ category.name }}</strong>{% endif %}
+    {%- if q or category %} · <a href="{{ url_for('posts.index') }}">Clear search</a>{% endif %}
+  </p>
+
+  {% for post in posts %}
+    <article class="card">
+      <h2><a href="{{ url_for('posts.detail', post_id=post.id) }}">{{ post.title }}</a></h2>
+      <p class="meta">
+        by {{ post.username }} · {{ post.created_at[:10] }} ·
+        <a class="tag" href="{{ url_for('posts.index', category=post.category_id) }}">{{ post.category_name }}</a>
+      </p>
+      <p class="excerpt">{{ post.body|truncate(220) }}</p>
+    </article>
+  {% else %}
+    <p>No posts found.{% if g.user %} <a href="{{ url_for('posts.create') }}">Write the first one!</a>{% endif %}</p>
+  {% endfor %}
+
+  {% if pages > 1 %}
+    <nav class="pagination" aria-label="Pagination">
+      {% if page > 1 %}<a href="{{ url_for('posts.index', page=page - 1, **filters) }}">← Newer</a>{% endif %}
+      <span>Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a href="{{ url_for('posts.index', page=page + 1, **filters) }}">Older →</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}
