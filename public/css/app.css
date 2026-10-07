@@ -297,6 +297,26 @@ textarea:focus {
     margin-right: auto;
 }
 
+.confirm[open] {
+    flex-basis: 100%;
+}
+
+.confirm summary {
+    list-style: none;
+}
+
+.confirm summary::-webkit-details-marker {
+    display: none;
+}
+
+.confirm form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
 /* ---------- Content ---------- */
 
 .flash {

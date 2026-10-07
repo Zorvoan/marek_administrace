@@ -306,6 +306,7 @@ class PostTest extends TestCase
 
         $this->actingAs(User::factory()->create())->get($url)->assertOk()->assertDontSee($editLink)->assertDontSee('Delete');
 
-        $this->actingAs($post->user)->get($url)->assertOk()->assertSee($editLink)->assertSee('Delete');
+        $this->actingAs($post->user)->get($url)->assertOk()->assertSee($editLink)->assertSee('Yes, delete')
+            ->assertDontSee('onsubmit', false); // no inline JavaScript: the strict CSP would block it
     }
 }

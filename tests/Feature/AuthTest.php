@@ -96,13 +96,44 @@ class AuthTest extends TestCase
             ->assertRedirect(route('posts.create'));
     }
 
-    public function test_login_is_throttled(): void
+    public function test_repeated_logins_for_one_account_are_throttled(): void
     {
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 5; $i++) {
             $this->post('/login', ['email' => 'x@example.com', 'password' => 'wrong'])->assertStatus(302);
         }
 
         $this->post('/login', ['email' => 'x@example.com', 'password' => 'wrong'])->assertStatus(429);
+        // The email casing can't be used to dodge the limit.
+        $this->post('/login', ['email' => 'X@Example.com', 'password' => 'wrong'])->assertStatus(429);
+    }
+
+    public function test_throttling_one_account_does_not_block_other_people_on_the_same_ip(): void
+    {
+        $user = User::factory()->create();
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->post('/login', ['email' => 'attacker@example.com', 'password' => 'wrong']);
+        }
+        $this->post('/login', ['email' => 'attacker@example.com', 'password' => 'wrong'])->assertStatus(429);
+
+        // Same IP, other accounts (e.g. a class behind one router) still work...
+        for ($i = 0; $i < 8; $i++) {
+            $this->post('/login', ['email' => "student{$i}@example.com", 'password' => 'wrong'])->assertStatus(302);
+        }
+        $this->post('/login', ['email' => $user->email, 'password' => 'password'])->assertRedirect(route('posts.index'));
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_registration_is_throttled_separately_from_login(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $this->post('/register', ['name' => ''])->assertStatus(302);
+        }
+        $this->post('/register', $this->validRegistration())->assertStatus(429);
+        $this->assertDatabaseCount('users', 0);
+
+        $user = User::factory()->create();
+        $this->post('/login', ['email' => $user->email, 'password' => 'password'])->assertRedirect(route('posts.index'));
     }
 
     public function test_user_can_log_out(): void

@@ -13,11 +13,11 @@ Route::resource('posts', PostController::class)->except('index');
 Route::get('categories', [CategoryController::class, 'index'])->name('categories.index');
 Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
 
-// Authentication. Login/sign up are throttled per IP to slow down brute force.
+// Authentication. Rate limits are defined in AppServiceProvider.
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisterController::class, 'create'])->name('register');
-    Route::post('register', [RegisterController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('register', [RegisterController::class, 'store'])->middleware('throttle:register');
     Route::get('login', [SessionController::class, 'create'])->name('login');
-    Route::post('login', [SessionController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('login', [SessionController::class, 'store'])->middleware('throttle:login');
 });
 Route::post('logout', [SessionController::class, 'destroy'])->middleware('auth')->name('logout');

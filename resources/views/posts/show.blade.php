@@ -20,11 +20,15 @@
         @endcan
 
         @can('delete', $post)
-            <form method="POST" action="{{ route('posts.destroy', $post) }}" onsubmit="return confirm('Delete this post permanently?')">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="button danger">Delete</button>
-            </form>
+            <details class="confirm">
+                <summary class="button danger">Delete</summary>
+                <form method="POST" action="{{ route('posts.destroy', $post) }}">
+                    @csrf
+                    @method('DELETE')
+                    <span>Delete this post permanently?</span>
+                    <button type="submit" class="button danger">Yes, delete</button>
+                </form>
+            </details>
         @endcan
     </div>
 </x-layout>
